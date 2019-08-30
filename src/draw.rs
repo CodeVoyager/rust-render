@@ -3,10 +3,9 @@ use sdl2::rect::Point;
 use sdl2::render::WindowCanvas;
 use std::cmp;
 
-pub const PIXEL_SIZE: i32 = 4;
-pub const WIDTH_WINDOW: i32 = 160;
-pub const HEIGHT_WINDOW: i32 = 120;
+pub const PIXEL_SIZE: i32 = 2;
 
+#[derive(Debug)]
 pub struct Triangle {
     a: Point,
     b: Point,
@@ -77,10 +76,14 @@ pub fn line(point_a: Point, point_b: Point, color: Color, canvas: &mut WindowCan
                 y += dly
             }
         } else {
-            let x_start = point_a.x;
-            for x in x_start..=point_b.x {
-                pixel(Point::new(x, y.floor() as i32), color, canvas);
+            let mut x_start = point_a.x;
+            loop {
+                pixel(Point::new(x_start, y.floor() as i32), color, canvas);
                 y -= dly;
+                x_start -= 1;
+                if x_start < point_b.x {
+                    break;
+                }
             }
         }
     } else {
@@ -95,10 +98,15 @@ pub fn line(point_a: Point, point_b: Point, color: Color, canvas: &mut WindowCan
                 x += dlx
             }
         } else {
-            let y_start = point_a.y;
-            for y in y_start..=point_b.y {
-                pixel(Point::new(x.floor() as i32, y), color, canvas);
-                x -= dlx
+            let mut y_start = point_a.y;
+
+            loop {
+                pixel(Point::new(x.floor() as i32, y_start), color, canvas);
+                x -= dlx;
+                y_start -= 1;
+                if y_start < point_b.y {
+                    break;
+                }
             }
         }
     }
@@ -109,3 +117,4 @@ pub fn triangle(triangle: Triangle, color: Color, canvas: &mut WindowCanvas) {
     line(triangle.b, triangle.c, color, canvas);
     line(triangle.a, triangle.c, color, canvas);
 }
+
