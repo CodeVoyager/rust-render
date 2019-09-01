@@ -1,5 +1,11 @@
+//! Contains function and data structures used for
+//! projection, matrix multiplication and similiar stuff
+//!
+
 use crate::draw_3d;
 
+/// 4x4 Matrix
+///
 pub struct Mat4x4 {
     pub m: [[f32; 4]; 4],
 }
@@ -39,6 +45,8 @@ impl Mat4x4 {
         )
     }
 
+    /// Helper method for generating projection matrix
+    ///
     pub fn mat_proj(x00: f32, x11: f32, x22: f32, x23: f32, x32: f32, x33: f32) -> Mat4x4 {
         Mat4x4::new(
             x00, 0.0, 0.0, 0.0, // row 0
@@ -49,6 +57,9 @@ impl Mat4x4 {
     }
 }
 
+/// 4x4 Matrix multiplication function
+/// Multiplies 3D vector over 4x4 matrix (fourth value is implied 1)
+///
 pub fn mult_matrix_vector(i: &draw_3d::Vec3D, m: &Mat4x4) -> draw_3d::Vec3D {
     let x = (i.x * m.m[0][0]) + (i.y * m.m[1][0]) + (i.z * m.m[2][0]) + m.m[3][0];
     let y = (i.x * m.m[0][1]) + (i.y * m.m[1][1]) + (i.z * m.m[2][1]) + m.m[3][1];
@@ -60,4 +71,28 @@ pub fn mult_matrix_vector(i: &draw_3d::Vec3D, m: &Mat4x4) -> draw_3d::Vec3D {
     }
 
     draw_3d::Vec3D::new(x, y, z)
+}
+
+/// Calculates line from vertex
+/// Used for calculating normal
+///
+pub fn get_line(a: &draw_3d::Vec3D, b: &draw_3d::Vec3D) -> draw_3d::Vec3D {
+    draw_3d::Vec3D::new(b.x - a.x, b.y - a.y, b.z - a.z)
+}
+
+/// Calculates normal for vertex
+///
+pub fn get_normal(a: &draw_3d::Vec3D, b: &draw_3d::Vec3D) -> draw_3d::Vec3D {
+    let x = a.y * b.z - a.z * b.y;
+    let y = a.z * b.x - a.x * b.z;
+    let z = a.x * b.y - a.y * b.x;
+    let l = (x * x + y * y + z * z).sqrt();
+
+    draw_3d::Vec3D::new(x / l, y / l, z / l)
+}
+
+/// Calculates dot product of two points
+///
+pub fn get_dot_product(a: &draw_3d::Vec3D, b: &draw_3d::Vec3D) -> f32 {
+    a.x * b.x + a.y * b.y + a.z * b.z
 }

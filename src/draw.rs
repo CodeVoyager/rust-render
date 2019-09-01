@@ -1,23 +1,38 @@
+//! Part of the project used for drawing 2D shapes on a screen
+//!
+//!
+
+
 use sdl2::pixels::Color;
 use sdl2::rect::Point;
 use sdl2::render::WindowCanvas;
 use std::cmp;
 
-pub const PIXEL_SIZE: i32 = 2;
+pub const PIXEL_SIZE: i32 = 1;
 
-#[derive(Debug)]
+/// Triangle shape
+///
+#[derive(Debug, Clone)]
 pub struct Triangle {
     a: Point,
     b: Point,
     c: Point,
+    pub color: Option<Color>,
 }
 
 impl Triangle {
     pub fn new(a: Point, b: Point, c: Point) -> Triangle {
-        Triangle { a, b, c }
+        Triangle { a, b, c, color: None }
     }
 }
 
+/// My own API for putting pixel on a screen
+///
+/// This is discourged by SDL2 rust binding author(s). I do it
+/// because:
+/// 1. This is fun/educational project
+/// 2. Pixel in memory can be presented by more than one physical/canvas pixel
+///
 pub fn pixel(point: Point, color: Color, canvas: &mut WindowCanvas) {
     canvas.set_draw_color(color);
     if PIXEL_SIZE == 1 {
@@ -118,3 +133,77 @@ pub fn triangle(triangle: Triangle, color: Color, canvas: &mut WindowCanvas) {
     line(triangle.a, triangle.c, color, canvas);
 }
 
+pub fn filled_triangle(t: Triangle, color: Color, canvas: &mut WindowCanvas) {
+    let mut ps = [t.a, t.b, t.c];
+
+    ps.sort_by(|a, b| a.y.partial_cmp(&b.y).unwrap());
+
+    let [p1, p2, p3] = ps;
+
+    if p2.y == p3.y {
+        filled_flat_bottom_triangle(Triangle::new(p1, p2, p3), color, canvas);
+    } else if p1.y == p2.y {
+        filled_flat_top_triangle(Triangle::new(p3, p1, p2), color, canvas);
+    } else {
+        let x4 =
+            p1.x + (((p2.y - p1.y) as f32 / (p3.y - p1.y) as f32) * (p3.x - p1.x) as f32) as i32;
+        let p4 = Point::new(x4, p2.y);
+
+        filled_flat_bottom_triangle(Triangle::new(p1, p2, p4), color, canvas);
+        filled_flat_top_triangle(Triangle::new(p3, p2, p4), color, canvas);
+    }
+}
+
+/// Draws flat bottom triangle
+///
+/// Assumptions:
+/// t.a - top of a triangle
+/// t.b.y == t.c.y
+///
+pub fn filled_flat_bottom_triangle(t: Triangle, color: Color, canvas: &mut WindowCanvas) {
+    let inv_slope_1 = (t.b.x - t.a.x) as f32 / (t.b.y - t.a.y) as f32;
+    let inv_slope_2 = (t.c.x - t.a.x) as f32 / (t.c.y - t.a.y) as f32;
+    let mut curr_x_1 = t.a.x as f32;
+    let mut curr_x_2 = t.a.x as f32;
+    let mut scan_line_y = t.a.y;
+
+    while scan_line_y <= t.b.y {
+        line(
+            Point::new(curr_x_1 as i32, scan_line_y),
+            Point::new(curr_x_2 as i32, scan_line_y),
+            color,
+            canvas,
+        );
+
+        curr_x_1 += inv_slope_1;
+        curr_x_2 += inv_slope_2;
+        scan_line_y += 1;
+    }
+}
+
+/// Draws flat top triangle
+///
+/// Assumptions:
+/// t.a - bottom of a triangle
+/// t.b.y == t.c.y
+///
+pub fn filled_flat_top_triangle(t: Triangle, color: Color, canvas: &mut WindowCanvas) {
+    let inv_slope_1 = (t.a.x - t.b.x) as f32 / (t.a.y - t.b.y) as f32;
+    let inv_slope_2 = (t.a.x - t.c.x) as f32 / (t.a.y - t.c.y) as f32;
+    let mut curr_x_1 = t.a.x as f32;
+    let mut curr_x_2 = t.a.x as f32;
+    let mut scan_line_y = t.a.y;
+
+    while scan_line_y >= t.b.y {
+        line(
+            Point::new(curr_x_1 as i32, scan_line_y),
+            Point::new(curr_x_2 as i32, scan_line_y),
+            color,
+            canvas,
+        );
+
+        curr_x_1 -= inv_slope_1;
+        curr_x_2 -= inv_slope_2;
+        scan_line_y -= 1;
+    }
+}
