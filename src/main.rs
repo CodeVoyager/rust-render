@@ -11,7 +11,6 @@ extern crate sdl2;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::Point;
 use std::cmp::Ordering;
 use std::f32;
 use std::time::Duration;
@@ -22,11 +21,8 @@ pub mod draw_3d;
 pub mod transform;
 
 fn main() {
-    let color_white: Color = Color::RGB(255, 255, 255);
     let color_black: Color = Color::RGB(0, 0, 0);
     let color_red: Color = Color::RGB(255, 0, 0);
-    let color_blue: Color = Color::RGB(0, 0, 255);
-    let color_green: Color = Color::RGB(0, 255, 0);
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -52,6 +48,7 @@ fn main() {
     canvas.present();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
+    //let model = draw_3d::Mesh::from_obj("/mnt/usb/Resources/models/obj/wolf/wolf.obj");
     let model = draw_3d::Mesh::from_obj("<PATH>");
     let camera = draw_3d::Vec3D::new(0.0, 0.0, 0.0);
     let light = draw_3d::Vec3D::new(0.0, 0.0, -1.0);
@@ -62,7 +59,7 @@ fn main() {
     let far: f32 = 1000.0;
     let fov: f32 = 90.0;
     let aspect_ratio: f32 = screen_height as f32 / screen_width as f32;
-    let fov_rad: f32 = 1.0 / (fov / 0.5).tan();
+    let fov_rad: f32 = 1.0 / (fov * 0.5).tan();
 
     let mat_proj = transform::Mat4x4::mat_proj(
         aspect_ratio * fov_rad,       // x00
@@ -210,7 +207,7 @@ fn main() {
             draw::filled_triangle(t.to_2d(), t.color.unwrap(), &mut canvas);
 
             // Wireframe for debugging
-            //draw::triangle(t.to_2d(), color_green, &mut canvas);
+            draw::triangle(t.to_2d(), color_red, &mut canvas);
         }
 
         canvas.present();

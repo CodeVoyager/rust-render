@@ -5,8 +5,7 @@
 use crate::draw;
 use sdl2::rect::Point;
 use std::fs::File;
-use std::io::{self, prelude::*, BufReader};
-use std::path::Path;
+use std::io::{prelude::*, BufReader};
 use sdl2::pixels::Color;
 
 /// Vertex vector
@@ -16,11 +15,18 @@ pub struct Vec3D {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+    pub w: f32,
+}
+
+impl Default for Vec3D {
+    fn default () -> Self {
+        Vec3D { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+    }
 }
 
 impl Vec3D {
     pub fn new(x: f32, y: f32, z: f32) -> Vec3D {
-        Vec3D { x, y, z }
+        Vec3D { x, y, z, ..Default::default() }
     }
 }
 
