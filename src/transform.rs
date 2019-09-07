@@ -1,5 +1,5 @@
 //! Contains function and data structures used for
-//! projection, matrix multiplication and similiar stuff
+//! projection, m.multiplication and similiar stuff
 //!
 
 use crate::draw_3d;
@@ -81,12 +81,46 @@ impl Mat4x4 {
         m
     }
 
+    pub fn mat_rot_y(deg: &f32) -> Mat4x4 {
+        let mut m = Mat4x4::new_empty();
+        m.m[0][0] = deg.cos();
+        m.m[0][2] = deg.sin();
+        m.m[2][0] = -deg.sin();
+        m.m[1][1] = 1.0;
+        m.m[2][2] = deg.cos();
+        m.m[3][3] = 1.0;
+        m
+    }
+
+    pub fn mat_trans(x: f32, y: f32, z: f32) -> Mat4x4 {
+        let mut m = Mat4x4::id();
+        m.m[3][0] = x;
+        m.m[3][1] = y;
+        m.m[3][2] = z;
+        m
+    }
+
     pub fn id() -> Mat4x4 {
         let mut m = Mat4x4::new_empty();
         m.m[0][0] = 1.0;
         m.m[1][1] = 1.0;
         m.m[2][2] = 1.0;
         m.m[3][3] = 1.0;
+        m
+    }
+
+    pub fn mul(&self, other: &Mat4x4) -> Mat4x4 {
+        let mut m = Mat4x4::new_empty();
+
+        for c in 0..4 {
+            for r in 0..4 {
+                m.m[r][c] = self.m[r][0] * other.m[0][c]
+                    + self.m[r][1] * other.m[1][c]
+                    + self.m[r][2] * other.m[2][c]
+                    + self.m[r][3] * other.m[3][c]
+            }
+        }
+
         m
     }
 }

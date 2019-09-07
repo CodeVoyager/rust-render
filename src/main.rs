@@ -94,6 +94,11 @@ fn main() {
         theta += 1.0 * time_elapsed_frac;
         let mat_rot_x = transform::Mat4x4::mat_rot_x(&(theta * 0.5));
         let mat_rot_z = transform::Mat4x4::mat_rot_z(&theta);
+        let mat_rot_y = transform::Mat4x4::mat_rot_z(&(theta * 0.3));
+        let mat_trans = transform::Mat4x4::mat_trans(0.0, 0.0, 16.0 + z_offset);
+        let mat_world = mat_rot_z.mul(&mat_rot_x).mul(&mat_trans).mul(&mat_rot_y);
+        let view_offset = draw_3d::Vec3D::new(1.0, 1.0, 0.0);
+        let screen_offset = draw_3d::Vec3D::new(screen_width_half, screen_height_half, 1.0);
 
         prev_sys_time = sys_time;
 
@@ -104,59 +109,30 @@ fn main() {
         for i in 0..model.tris.len() {
             //println!("triangle {}", i);
             let mut tri_projected = draw_3d::Triangle3D::new_empty();
-            let mut tri_rot_z = draw_3d::Triangle3D::new_empty();
-            let mut tri_rot_zx = draw_3d::Triangle3D::new_empty();
+            let mut tri_translated = draw_3d::Triangle3D::new_empty();
 
             // Rotation
-            tri_rot_z.p[0] = transform::mult_matrix_vector(&model.tris[i].p[0], &mat_rot_z);
-            tri_rot_z.p[1] = transform::mult_matrix_vector(&model.tris[i].p[1], &mat_rot_z);
-            tri_rot_z.p[2] = transform::mult_matrix_vector(&model.tris[i].p[2], &mat_rot_z);
-
-            tri_rot_zx.p[0] = transform::mult_matrix_vector(&tri_rot_z.p[0], &mat_rot_x);
-            tri_rot_zx.p[1] = transform::mult_matrix_vector(&tri_rot_z.p[1], &mat_rot_x);
-            tri_rot_zx.p[2] = transform::mult_matrix_vector(&tri_rot_z.p[2], &mat_rot_x);
-
-            // Translation
-            let mut tri_translated = tri_rot_zx.clone();
-
-            tri_translated.p[0].z += z_offset;
-            tri_translated.p[1].z += z_offset;
-            tri_translated.p[2].z += z_offset;
-
+            for v in 0..3 {
+                tri_translated.p[v] =
+                    transform::mult_matrix_vector(&model.tris[i].p[v], &mat_world);
+            }
             let line1 = tri_translated.p[1].sub(&tri_translated.p[0]);
             let line2 = tri_translated.p[2].sub(&tri_translated.p[0]);
 
             let normal = line1.cross_product(&line2).normalize();
             if normal.dot_product(&tri_translated.p[0].sub(&camera)) < 0.0 {
                 // 3D -> 2D
-                tri_projected.p[0] = transform::mult_matrix_vector(&tri_translated.p[0], &mat_proj);
-                tri_projected.p[1] = transform::mult_matrix_vector(&tri_translated.p[1], &mat_proj);
-                tri_projected.p[2] = transform::mult_matrix_vector(&tri_translated.p[2], &mat_proj);
-
+                for v in 0..3 {
+                    tri_projected.p[v] =
+                        transform::mult_matrix_vector(&tri_translated.p[v], &mat_proj)
+                            .add(&view_offset)
+                            .mul(&screen_offset);
+                }
                 // Illumination
                 let light_dp = normal.dot_product(&light);
-                let color = Color::RGB(
-                    (255.0 * light_dp) as u8,
-                    (255.0 * light_dp) as u8,
-                    (255.0 * light_dp) as u8,
-                );
-
+                let shade = (255.0 * light_dp) as u8;
+                let color = Color::RGB(shade, shade, shade);
                 tri_projected.color = Some(color);
-
-                tri_projected.p[0].x += 1.0;
-                tri_projected.p[0].y += 1.0;
-                tri_projected.p[1].x += 1.0;
-                tri_projected.p[1].y += 1.0;
-                tri_projected.p[2].x += 1.0;
-                tri_projected.p[2].y += 1.0;
-
-                tri_projected.p[0].x *= screen_width_half;
-                tri_projected.p[0].y *= screen_height_half;
-                tri_projected.p[1].x *= screen_width_half;
-                tri_projected.p[1].y *= screen_height_half;
-                tri_projected.p[2].x *= screen_width_half;
-                tri_projected.p[2].y *= screen_height_half;
-
                 tris_to_rater.push(tri_projected);
             }
         }
@@ -182,8 +158,8 @@ fn main() {
         }
 
         canvas.present();
-        //::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 120));
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+        //::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 120));
         //::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 20));
         //::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 5));
     }
