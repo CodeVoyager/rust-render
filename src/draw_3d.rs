@@ -3,10 +3,10 @@
 //!
 
 use crate::draw;
+use sdl2::pixels::Color;
 use sdl2::rect::Point;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
-use sdl2::pixels::Color;
 
 /// Vertex vector
 ///
@@ -19,14 +19,50 @@ pub struct Vec3D {
 }
 
 impl Default for Vec3D {
-    fn default () -> Self {
-        Vec3D { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+    fn default() -> Self {
+        Vec3D {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            w: 1.0,
+        }
     }
 }
 
 impl Vec3D {
     pub fn new(x: f32, y: f32, z: f32) -> Vec3D {
-        Vec3D { x, y, z, ..Default::default() }
+        Vec3D {
+            x,
+            y,
+            z,
+            ..Default::default()
+        }
+    }
+
+    pub fn dot_product(&self, other: &Vec3D) -> f32 {
+        self.x * other.x + self.y * other.y + self.z * other.z
+    }
+
+    pub fn len(&self) -> f32 {
+        self.dot_product(self).sqrt()
+    }
+
+    pub fn normalize(&self) -> Vec3D {
+        let l = self.len();
+
+        Vec3D::new(self.x / l, self.y / l, self.z / l)
+    }
+
+    pub fn sub(&self, other: &Vec3D) -> Vec3D {
+        Vec3D::new(self.x - other.x, self.y - other.y, self.z - other.z)
+    }
+
+    pub fn cross_product(&self, other: &Vec3D) -> Vec3D {
+        let x = self.y * other.z - self.z * other.y;
+        let y = self.z * other.x - self.x * other.z;
+        let z = self.x * other.y - self.y * other.x;
+
+        Vec3D::new(x, y, z)
     }
 }
 
@@ -40,7 +76,10 @@ pub struct Triangle3D {
 
 impl Triangle3D {
     pub fn new(a: Vec3D, b: Vec3D, c: Vec3D) -> Triangle3D {
-        Triangle3D { p: [a, b, c], color: None }
+        Triangle3D {
+            p: [a, b, c],
+            color: None,
+        }
     }
 
     pub fn new_empty() -> Triangle3D {
@@ -115,7 +154,11 @@ impl Mesh {
                                     f2 = fpart[0].parse().unwrap();
                                     let fpart: Vec<&str> = words[3].split("/").collect();
                                     f3 = fpart[0].parse().unwrap();
-                                    tris.push(Triangle3D::new(vs[f1 as usize - 1], vs[f2 as usize - 1], vs[f3 as usize - 1]));
+                                    tris.push(Triangle3D::new(
+                                        vs[f1 as usize - 1],
+                                        vs[f2 as usize - 1],
+                                        vs[f3 as usize - 1],
+                                    ));
                                 }
                             }
                         }

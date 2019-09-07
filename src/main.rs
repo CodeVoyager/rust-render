@@ -3,7 +3,6 @@
 //! Fun/educational project
 //!
 
-
 #![crate_name = "rust_renderer"]
 
 extern crate sdl2;
@@ -48,34 +47,27 @@ fn main() {
     canvas.present();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
-    //let model = draw_3d::Mesh::from_obj("/mnt/usb/Resources/models/obj/wolf/wolf.obj");
     let model = draw_3d::Mesh::from_obj("<PATH>");
-    let camera = draw_3d::Vec3D::new(0.0, 0.0, 0.0);
-    let light = draw_3d::Vec3D::new(0.0, 0.0, -1.0);
-    // normalizing light
-    let l = (light.x * light.x + light.y * light.y + light.z * light.z).sqrt();
-    let light = draw_3d::Vec3D::new(light.x / l, light.y / l, light.z / l);
+    let camera = draw_3d::Vec3D {
+        ..Default::default()
+    };
+    let light = (draw_3d::Vec3D {
+        z: -1.0,
+        ..Default::default()
+    })
+    .normalize();
     let near: f32 = 0.1;
     let far: f32 = 1000.0;
     let fov: f32 = 90.0;
     let aspect_ratio: f32 = screen_height as f32 / screen_width as f32;
-    let fov_rad: f32 = 1.0 / (fov * 0.5).tan();
-
-    let mat_proj = transform::Mat4x4::mat_proj(
-        aspect_ratio * fov_rad,       // x00
-        fov_rad,                      // x11
-        far / (far - near),           // x22
-        1.0,                          // x23
-        (-near * far) / (far - near), // x32
-        0.0,                          // x33
-    );
+    let mat_proj = transform::Mat4x4::mat_proj(fov, aspect_ratio, far, near);
 
     let screen_width_half = screen_width as f32 * 0.5;
     let screen_height_half = screen_height as f32 * 0.5;
     let mut theta = 0.0;
     // HACK: pushing object further into space so my computer
     // does not melt
-    let z_offset = 1500.0;
+    let z_offset = 800.0;
 
     let mut prev_sys_time = SystemTime::now();
     'running: loop {
@@ -99,23 +91,9 @@ fn main() {
             Ok(duration) => duration.as_millis() as f32 / 1000.0,
             Err(_) => 0.0,
         };
-        let mut mat_rot_x = transform::Mat4x4::new_empty();
-        let mut mat_rot_z = transform::Mat4x4::new_empty();
-
         theta += 1.0 * time_elapsed_frac;
-        mat_rot_z.m[0][0] = theta.cos();
-        mat_rot_z.m[0][1] = theta.sin();
-        mat_rot_z.m[1][0] = -theta.sin();
-        mat_rot_z.m[1][1] = theta.cos();
-        mat_rot_z.m[2][2] = 1.0;
-        mat_rot_z.m[3][3] = 1.0;
-
-        mat_rot_x.m[0][0] = 1.0;
-        mat_rot_x.m[1][1] = (theta * 0.5).cos();
-        mat_rot_x.m[1][2] = (theta * 0.5).sin();
-        mat_rot_x.m[2][1] = -(theta * 0.5).sin();
-        mat_rot_x.m[2][2] = (theta * 0.5).cos();
-        mat_rot_x.m[3][3] = 1.0;
+        let mat_rot_x = transform::Mat4x4::mat_rot_x(&(theta * 0.5));
+        let mat_rot_z = transform::Mat4x4::mat_rot_z(&theta);
 
         prev_sys_time = sys_time;
 
@@ -145,25 +123,18 @@ fn main() {
             tri_translated.p[1].z += z_offset;
             tri_translated.p[2].z += z_offset;
 
-            let line1 = transform::get_line(&tri_translated.p[0], &tri_translated.p[1]);
-            let line2 = transform::get_line(&tri_translated.p[0], &tri_translated.p[2]);
-            let normal = transform::get_normal(&line1, &line2);
-            if transform::get_dot_product(
-                &normal,
-                &draw_3d::Vec3D::new(
-                    tri_translated.p[0].x - camera.x,
-                    tri_translated.p[0].y - camera.y,
-                    tri_translated.p[0].z - camera.z,
-                ),
-            ) < 0.0
-            {
+            let line1 = tri_translated.p[1].sub(&tri_translated.p[0]);
+            let line2 = tri_translated.p[2].sub(&tri_translated.p[0]);
+
+            let normal = line1.cross_product(&line2).normalize();
+            if normal.dot_product(&tri_translated.p[0].sub(&camera)) < 0.0 {
                 // 3D -> 2D
                 tri_projected.p[0] = transform::mult_matrix_vector(&tri_translated.p[0], &mat_proj);
                 tri_projected.p[1] = transform::mult_matrix_vector(&tri_translated.p[1], &mat_proj);
                 tri_projected.p[2] = transform::mult_matrix_vector(&tri_translated.p[2], &mat_proj);
 
                 // Illumination
-                let light_dp = transform::get_dot_product(&normal, &light);
+                let light_dp = normal.dot_product(&light);
                 let color = Color::RGB(
                     (255.0 * light_dp) as u8,
                     (255.0 * light_dp) as u8,
