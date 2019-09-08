@@ -100,6 +100,68 @@ impl Mat4x4 {
         m
     }
 
+    pub fn point_at(pos: &draw_3d::Vec3D, target: &draw_3d::Vec3D, up: &draw_3d::Vec3D) -> Mat4x4 {
+        let forward = target.sub(pos).normalize();
+        let up_forward_dp = up.dot_product(&forward);
+        let new_up = up
+            .sub(&forward.mul(&draw_3d::Vec3D::new(
+                up_forward_dp,
+                up_forward_dp,
+                up_forward_dp,
+            )))
+            .normalize();
+        let right = new_up.cross_product(&forward);
+        let mut m = Mat4x4::new_empty();
+
+        m.m[0][0] = right.x;
+        m.m[0][1] = right.y;
+        m.m[0][2] = right.z;
+        m.m[0][3] = 0.0;
+        m.m[1][0] = new_up.x;
+        m.m[1][1] = new_up.y;
+        m.m[1][2] = new_up.z;
+        m.m[1][3] = 0.0;
+        m.m[2][0] = forward.x;
+        m.m[2][1] = forward.y;
+        m.m[2][2] = forward.z;
+        m.m[2][3] = 0.0;
+        m.m[3][0] = pos.x;
+        m.m[3][1] = pos.y;
+        m.m[3][2] = pos.z;
+        m.m[3][3] = 1.0;
+
+        m
+    }
+
+    pub fn to_look_at(&self) -> Mat4x4 {
+        let mut new_mat = Mat4x4::new_empty();
+
+        new_mat.m[0][0] = self.m[0][0];
+        new_mat.m[0][1] = self.m[1][0];
+        new_mat.m[0][2] = self.m[2][0];
+        new_mat.m[0][3] = 0.0;
+        new_mat.m[1][0] = self.m[0][1];
+        new_mat.m[1][1] = self.m[1][1];
+        new_mat.m[1][2] = self.m[2][1];
+        new_mat.m[1][3] = 0.0;
+        new_mat.m[2][0] = self.m[0][2];
+        new_mat.m[2][1] = self.m[1][2];
+        new_mat.m[2][2] = self.m[2][2];
+        new_mat.m[2][3] = 0.0;
+        new_mat.m[3][0] = -(self.m[3][0] * new_mat.m[0][0]
+            + self.m[3][1] * new_mat.m[1][0]
+            + self.m[3][2] * new_mat.m[2][0]);
+        new_mat.m[3][1] = -(self.m[3][0] * new_mat.m[0][1]
+            + self.m[3][1] * new_mat.m[1][1]
+            + self.m[3][2] * new_mat.m[2][1]);
+        new_mat.m[3][2] = -(self.m[3][0] * new_mat.m[0][2]
+            + self.m[3][1] * new_mat.m[1][2]
+            + self.m[3][2] * new_mat.m[2][2]);
+        new_mat.m[3][3] = 1.0;
+
+        new_mat
+    }
+
     pub fn id() -> Mat4x4 {
         let mut m = Mat4x4::new_empty();
         m.m[0][0] = 1.0;
@@ -134,9 +196,5 @@ pub fn mult_matrix_vector(i: &draw_3d::Vec3D, m: &Mat4x4) -> draw_3d::Vec3D {
     let z = (i.x * m.m[0][2]) + (i.y * m.m[1][2]) + (i.z * m.m[2][2]) + (i.w * m.m[3][2]);
     let w = (i.x * m.m[0][3]) + (i.y * m.m[1][3]) + (i.z * m.m[2][3]) + (i.w * m.m[3][3]);
 
-    if w != 0.0 {
-        return draw_3d::Vec3D::new(x / w, y / w, z / w);
-    }
-
-    draw_3d::Vec3D::new(x, y, z)
+    draw_3d::Vec3D { x, y, z, w }
 }

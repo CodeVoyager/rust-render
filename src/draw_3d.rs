@@ -65,6 +65,10 @@ impl Vec3D {
         Vec3D::new(self.x * other.x, self.y * other.y, self.z * other.z)
     }
 
+    pub fn div(&self, other: &Vec3D) -> Vec3D {
+        Vec3D::new(self.x / other.x, self.y / other.y, self.z / other.z)
+    }
+
     pub fn cross_product(&self, other: &Vec3D) -> Vec3D {
         let x = self.y * other.z - self.z * other.y;
         let y = self.z * other.x - self.x * other.z;

@@ -26,8 +26,8 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
-    let screen_width = 1300;
-    let screen_height = 760;
+    let screen_width = 1000;
+    let screen_height = 500;
 
     let window = video_subsystem
         .window(
@@ -48,7 +48,8 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     let model = draw_3d::Mesh::from_obj("<PATH>");
-    let camera = draw_3d::Vec3D {
+    let mut look_dir = draw_3d::Vec3D::new(0.0, 0.0, 0.0);
+    let mut camera = draw_3d::Vec3D {
         ..Default::default()
     };
     let light = (draw_3d::Vec3D {
@@ -56,6 +57,7 @@ fn main() {
         ..Default::default()
     })
     .normalize();
+    let mut yaw: f32 = 0.0;
     let near: f32 = 0.1;
     let far: f32 = 1000.0;
     let fov: f32 = 90.0;
@@ -71,6 +73,12 @@ fn main() {
 
     let mut prev_sys_time = SystemTime::now();
     'running: loop {
+        let sys_time = SystemTime::now();
+        let time_elapsed = sys_time.duration_since(prev_sys_time);
+        let time_elapsed_frac = match time_elapsed {
+            Ok(duration) => duration.as_millis() as f32 / 1000.0,
+            Err(_) => 0.0,
+        };
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -82,23 +90,92 @@ fn main() {
                     keycode: Some(Keycode::Q),
                     ..
                 } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Up),
+                    ..
+                } => {
+                    camera.y += 16.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Down),
+                    ..
+                } => {
+                    camera.y -= 16.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    camera.x += 16.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    camera.x -= 16.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    camera.x -= 16.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::A),
+                    ..
+                } => {
+                    yaw -= 2.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::D),
+                    ..
+                } => {
+                    yaw += 2.0 * time_elapsed_frac;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::W),
+                    ..
+                } => {
+                    let forward = draw_3d::Vec3D::new(
+                        16.0 * time_elapsed_frac,
+                        16.0 * time_elapsed_frac,
+                        16.0 * time_elapsed_frac,
+                    );
+                    camera = camera.add(&forward);
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::S),
+                    ..
+                } => {
+                    let forward = draw_3d::Vec3D::new(
+                        16.0 * time_elapsed_frac,
+                        16.0 * time_elapsed_frac,
+                        16.0 * time_elapsed_frac,
+                    );
+                    camera = camera.sub(&forward);
+                }
                 _ => {}
             }
         }
-        let sys_time = SystemTime::now();
-        let time_elapsed = sys_time.duration_since(prev_sys_time);
-        let time_elapsed_frac = match time_elapsed {
-            Ok(duration) => duration.as_millis() as f32 / 1000.0,
-            Err(_) => 0.0,
-        };
-        theta += 1.0 * time_elapsed_frac;
+
+        //theta += 1.0 * time_elapsed_frac;
         let mat_rot_x = transform::Mat4x4::mat_rot_x(&(theta * 0.5));
         let mat_rot_z = transform::Mat4x4::mat_rot_z(&theta);
-        let mat_rot_y = transform::Mat4x4::mat_rot_z(&(theta * 0.3));
-        let mat_trans = transform::Mat4x4::mat_trans(0.0, 0.0, 16.0 + z_offset);
+        let mat_rot_y = transform::Mat4x4::mat_rot_y(&(theta * 0.3));
+        let mat_trans = transform::Mat4x4::mat_trans(0.0, 0.0, 0.0 + z_offset);
         let mat_world = mat_rot_z.mul(&mat_rot_x).mul(&mat_trans).mul(&mat_rot_y);
         let view_offset = draw_3d::Vec3D::new(1.0, 1.0, 0.0);
         let screen_offset = draw_3d::Vec3D::new(screen_width_half, screen_height_half, 1.0);
+
+        let up = draw_3d::Vec3D::new(0.0, 1.0, 0.0);
+        let look_dir = draw_3d::Vec3D::new(0.0, 0.0, 1.0);
+        let camera_rot = transform::Mat4x4::mat_rot_y(&yaw);
+        let look_dir = transform::mult_matrix_vector(&look_dir, &camera_rot);
+
+
+        let target = camera.add(&look_dir);
+        let mat_camera = transform::Mat4x4::point_at(&camera, &target, &up);
+        let mat_view = mat_camera.to_look_at();
 
         prev_sys_time = sys_time;
 
@@ -121,16 +198,32 @@ fn main() {
 
             let normal = line1.cross_product(&line2).normalize();
             if normal.dot_product(&tri_translated.p[0].sub(&camera)) < 0.0 {
-                // 3D -> 2D
                 for v in 0..3 {
+                    // Worlds space -> View space
+                    tri_translated.p[v] =
+                        transform::mult_matrix_vector(&tri_translated.p[v], &mat_view);
+                    // 3D -> 2D
                     tri_projected.p[v] =
-                        transform::mult_matrix_vector(&tri_translated.p[v], &mat_proj)
-                            .add(&view_offset)
-                            .mul(&screen_offset);
+                        transform::mult_matrix_vector(&tri_translated.p[v], &mat_proj);
+                    tri_projected.p[v] = tri_projected.p[v]
+                        .div(
+                            &(draw_3d::Vec3D {
+                                x: tri_projected.p[v].w,
+                                y: tri_projected.p[v].w,
+                                z: tri_projected.p[v].w,
+                                w: tri_projected.p[v].w,
+                            }),
+                        )
+                        .add(&view_offset)
+                        .mul(&screen_offset);
                 }
                 // Illumination
                 let light_dp = normal.dot_product(&light);
-                let shade = (255.0 * light_dp) as u8;
+                let mut shade = (255.0 * light_dp) as u8;
+                // Small hack for avoid pitch black shades
+                if shade == 0 {
+                    shade = 10;
+                }
                 let color = Color::RGB(shade, shade, shade);
                 tri_projected.color = Some(color);
                 tris_to_rater.push(tri_projected);
@@ -154,7 +247,7 @@ fn main() {
             draw::filled_triangle(t.to_2d(), t.color.unwrap(), &mut canvas);
 
             // Wireframe for debugging
-            draw::triangle(t.to_2d(), color_red, &mut canvas);
+            //draw::triangle(t.to_2d(), color_red, &mut canvas);
         }
 
         canvas.present();
